@@ -15,7 +15,7 @@
  */
 
 package com.android.server.wifi.p2p;
-
+ 
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+<<<<<<< 2c778d18522e073f2b363095d3408fa1a1141a95
 import android.net.ConnectivityManager;
 import android.net.DhcpResults;
 import android.net.InterfaceConfiguration;
@@ -32,21 +33,17 @@ import android.net.LinkProperties;
 import android.net.NetworkInfo;
 import android.net.NetworkUtils;
 import android.net.ip.IpManager;
+=======
+import android.net.*;
+>>>>>>> Fix imports
 import android.net.wifi.WpsInfo;
-import android.net.wifi.p2p.IWifiP2pManager;
-import android.net.wifi.p2p.WifiP2pConfig;
-import android.net.wifi.p2p.WifiP2pDevice;
-import android.net.wifi.p2p.WifiP2pDeviceList;
-import android.net.wifi.p2p.WifiP2pGroup;
-import android.net.wifi.p2p.WifiP2pGroupList;
+import android.net.wifi.p2p.*;
 import android.net.wifi.p2p.WifiP2pGroupList.GroupDeleteListener;
-import android.net.wifi.p2p.WifiP2pInfo;
-import android.net.wifi.p2p.WifiP2pManager;
-import android.net.wifi.p2p.WifiP2pProvDiscEvent;
-import android.net.wifi.p2p.WifiP2pWfdInfo;
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pServiceRequest;
 import android.net.wifi.p2p.nsd.WifiP2pServiceResponse;
+<<<<<<< 2c778d18522e073f2b363095d3408fa1a1141a95
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -59,18 +56,16 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
+=======
+import android.os.*;
+>>>>>>> Fix imports
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Slog;
 import android.util.SparseArray;
-import android.view.KeyEvent;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
+import android.view.*;
 import android.widget.EditText;
 import android.widget.TextView;
-
 import com.android.internal.R;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.Protocol;
@@ -79,14 +74,17 @@ import com.android.internal.util.StateMachine;
 import com.android.server.wifi.WifiMonitor;
 import com.android.server.wifi.WifiNative;
 import com.android.server.wifi.WifiStateMachine;
-
-import java.io.FileDescriptor;
-import java.io.PrintWriter;
+ 
+import java.io.*;
 import java.net.InetAddress;
+<<<<<<< 2c778d18522e073f2b363095d3408fa1a1141a95
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+=======
+import java.util.*;
+>>>>>>> Fix imports
 
 
 /**
