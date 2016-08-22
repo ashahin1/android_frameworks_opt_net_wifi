@@ -233,7 +233,16 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
 
     /* Is chosen as a unique address to avoid conflict with
        the ranges defined in Tethering.java */
-    private static final String SERVER_ADDRESS = "192.168.49.1";
+    private static /*final*/ String SERVER_ADDRESS = "192.168.49.1";
+
+    /* ----------------- My Code -------------------------
+     * This bool variable is used to bypass the confirmation dialog in case we have a custom IP address sent by the app.
+     *----------------------------------------------------*/
+    private static Boolean mIgnoreConfirmationDialog = false;
+    /* ----------------- My Code -------------------------
+     * This String Array variable is used to set an additional DHCP range if the SERVER_ADDRESS is modified
+     *----------------------------------------------------*/
+    private static String[] mAdditionalDhcpRange = {};
 
     /**
      * Error code definition.
@@ -1195,6 +1204,60 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
                 case WifiP2pManager.ADD_LOCAL_SERVICE:
                     if (DBG) logd(getName() + " add service");
                     WifiP2pServiceInfo servInfo = (WifiP2pServiceInfo)message.obj;
+ 
+                    /*------------My Code----------------------
+                    * I want to be able to change the IP address of the GO instead
+                    * of the fixed 192.168.49.1, so I am adding this code.
+ 
+                    * The app should add a dummy local service that contains the desired
+                    * value for the third octet of the ip. The code here checks if this
+                    * service exits and retrieve the octet if found. The SERVER_ADDRESS
+                    * is then modified to allow the GO to have such IP.
+                    *-------------------------------------------*/
+ 
+                    List <String> queries = servInfo.getSupplicantQueryList();
+ 
+                    logd(getName() + " Ahmed code -> Queries.size () = " + queries.size());
+                    logd(getName() + " Ahmed code -> Queries.toString() " + queries.toString());
+ 
+                    if(queries.size() > 1) {
+                        String[] q1 = queries.get(1).split(" ");
+ 
+                        if (q1.length == 3) {
+                            byte[] bin = hexStr2Bin(q1[2]);
+                            if (bin != null) {
+                                logd(getName() + " Ahmed code -> TxtRecord String = " + new String(bin));
+                                if (parse(bin)) {
+                                    for (String key : mTxtRecord.keySet()) {
+                                        if (key.equals("pIP")) {
+                                            String pIp = mTxtRecord.get(key);
+                                            String [] ips = pIp.split(",");
+                                            String ip23Octet = ips[0];
+                                            //Make sure the IP is in the acceptable range.
+                                            if (isValidIpRange(ip23Octet)) {
+                                                SERVER_ADDRESS = "10." + ip23Octet + ".1";
+                                                mAdditionalDhcpRange = new String[]{
+                                                        "10." + ip23Octet + ".2",
+                                                        "10." + ip23Octet + ".254"
+                                                };
+                                                //As we have a custom IP, let's ignore the confirmation dialog
+                                                mIgnoreConfirmationDialog = true;
+                                            } else {
+                                                logd(getName() + " Ahmed code -> Invalid or malformed IP Range");
+                                            }
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    logd(getName() + "Ahmed code -> Failed to extract the record data");
+                                }
+                            } else {
+                                logd(getName() + " Ahmed code -> Null Data");
+                            }
+                        }
+                    }
+                    /*------------End of my code-----------------*/
+ 
                     if (addLocalService(message.replyTo, servInfo)) {
                         replyToMessage(message, WifiP2pManager.ADD_LOCAL_SERVICE_SUCCEEDED);
                     } else {
@@ -1304,6 +1367,83 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             sendP2pStateChangedBroadcast(false);
             mNetworkInfo.setIsAvailable(false);
         }
+
+ 
+        /* --------- My Code ------------------------*/
+        private boolean isValidIpRange(String range) {
+            boolean result = false;
+            logd(getName() + " Ahmed code -> Checking Range " + range);
+            //(!ip23Octet.equals("0.0")) && (!ip23Octet.equals("0.1")) && (!ip23Octet.equals("1.1")) && (!ip23Octet.equals("10.1")) && (!ip23Octet.equals("2.2"))
+             
+            String [] octets = range.split("\\.");
+            logd(getName() + " Ahmed code -> Octets Count " + octets.length);
+            if (octets.length == 2){
+                try {
+                    int oct1 = Integer.parseInt(octets[0]);
+                    int oct2 = Integer.parseInt(octets[1]);
+                     
+                    if ((oct1 > 2) && (oct1 <= 254) && (oct1 != 10) ) {
+                        if ((oct2 > 2) && (oct2 <= 254)) {
+                            result = true;
+                        }
+                    }
+                } catch (Exception ex) {}
+            }
+ 
+            return result;
+        }
+        /* ------ The end of Adopted Code ---------- */
+ 
+        /* --------- Adopted Code ------------------------
+        * The code below is adopted from the AOSP code to
+        * allow the extraction of the embedded record in the
+        * local service provided to this state machine
+        *-------------------------------------------------*/
+        HashMap<String, String> mTxtRecord = new HashMap<String, String>();
+ 
+        private byte[] hexStr2Bin(String hex) {
+            int sz = hex.length()/2;
+            byte[] b = new byte[hex.length()/2];
+ 
+            for (int i=0;i<sz;i++) {
+                try {
+                    b[i] = (byte)Integer.parseInt(hex.substring(i*2, i*2+2), 16);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+            return b;
+        }
+ 
+        private boolean parse(byte [] mData) {
+            DataInputStream dis = new DataInputStream(new ByteArrayInputStream(mData));
+ 
+            return readTxtData(dis);
+        }
+ 
+        private boolean readTxtData(DataInputStream dis) {
+            try {
+                while (dis.available() > 0) {
+                    int len = dis.readUnsignedByte();
+                    if (len == 0) {
+                        break;
+                    }
+                    byte[] data = new byte[len];
+                    dis.readFully(data);
+                    String[] keyVal = new String(data).split("=");
+                    if (keyVal.length != 2) {
+                        return false;
+                    }
+                    mTxtRecord.put(keyVal[0], keyVal[1]);
+                }
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+        /* ------ The end of Adopted Code ---------- */
     }
 
     class InactiveState extends State {
@@ -2398,7 +2538,11 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
             /* This starts the dnsmasq server */
             ConnectivityManager cm = (ConnectivityManager) mContext.getSystemService(
                     Context.CONNECTIVITY_SERVICE);
-            String[] tetheringDhcpRanges = cm.getTetheredDhcpRanges();
+            /*---------------------My Code--------------------------*/
+            String[] tetherTmp = cm.getTetheredDhcpRanges();
+            String[] tetheringDhcpRanges = Arrays.copyOf(tetherTmp, tetherTmp.length + mAdditionalDhcpRange.length);
+            System.arraycopy(mAdditionalDhcpRange, 0, tetheringDhcpRanges, tetherTmp.length, mAdditionalDhcpRange.length);
+            /*-------- -----En----------*/
             if (mNwService.isTetheringStarted()) {
                 if (DBG) logd("Stop existing tethering and restart it");
                 mNwService.stopTethering();
@@ -2508,6 +2652,15 @@ public class WifiP2pServiceImpl extends IWifiP2pManager.Stub {
     }
 
     private void notifyInvitationReceived() {
+        /* ------------My Code----------------------
+         * Here we ignore the confirmation dialog if a custom IP is sent by the app
+         * -------------------------------------------*/
+        if (mIgnoreConfirmationDialog) {
+            sendMessage(PEER_CONNECTION_USER_ACCEPT);
+            return ;
+        }
+        /* --------------------Enf of My Code ---------------*/
+
         Resources r = Resources.getSystem();
         final WpsInfo wps = mSavedPeerConfig.wps;
         final View textEntryView = LayoutInflater.from(mContext)
